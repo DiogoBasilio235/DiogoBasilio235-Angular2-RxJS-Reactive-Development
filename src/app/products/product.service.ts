@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
-import { catchError, map, Observable, tap, throwError } from 'rxjs';
+import { catchError, combineLatest, map, Observable, tap, throwError } from 'rxjs';
 
 import { Product } from './product';
+import { ProductCategoryService } from '../product-categories/product-category.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,18 +15,26 @@ export class ProductService {
   
   products$ = this.http.get<Product[]>(this.productsUrl)
   .pipe( 
-    //map(item => item.price * 1.5),
-    map(products => 
-      products.map(product => ({
-        ...product,
-        price : product.price ? product.price * 1.54 : 0,
-        searchKey : [product.productName]
-      } as Product))),
     tap(data => console.log('Products: ', JSON.stringify(data))),
     catchError(this.handleError)
   );
 
-  constructor(private http: HttpClient) { }
+  productsWithCategory$ = combineLatest([
+    this.products$,                                 //Observables [] to combine
+    this.productCategoryService.productCategories$  //Observables [] to combine
+  ]).pipe(
+    map(([products, categories]) =>  //combineLatest emits one item with both arrays(it is using destructuring to define a name for each of the array elements)
+    products.map(product => ({       // Each product is mapped to contain it's properties plus de category name
+      ...product,
+      price: product.price ? product.price * 1.5 : 0,
+      category: categories.find(c => product.categoryId === c.id)?.name, //If it exists a category
+      searchKey: [product.productName]
+    } as Product))
+    )
+  );
+
+  constructor(private http: HttpClient,
+              private productCategoryService: ProductCategoryService) { }
 
 
   private fakeProduct(): Product {
