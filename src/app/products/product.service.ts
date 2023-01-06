@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
-import { catchError, combineLatest, map, Observable, tap, throwError } from 'rxjs';
+import { BehaviorSubject, catchError, combineLatest, map, merge, Observable, scan, shareReplay, Subject, tap, throwError } from 'rxjs';
 
 import { Product } from './product';
 import { ProductCategoryService } from '../product-categories/product-category.service';
@@ -30,7 +30,7 @@ export class ProductService {
       category: categories.find(c => product.categoryId === c.id)?.name, //If it exists a category
       searchKey: [product.productName]
     } as Product))
-    )
+    ), shareReplay(1)
   );
 
   constructor(private http: HttpClient,
@@ -45,7 +45,7 @@ export class ProductService {
       description: 'Our new product',
       price: 8.9,
       categoryId: 3,
-      // category: 'Toolbox',
+      category: 'Toolbox',
       quantityInStock: 30
     };
   }
@@ -65,5 +65,52 @@ export class ProductService {
     console.error(err);
     return throwError(() => errorMessage);
   }
+
+  //We use a BehaviourSubject and not Subject to ensure our action stream emits at least once.
+  //This action sream will emit the ID of the user-selected product, so the BehaviorSubject is defined as a number.
+  private productSelectedSubject = new BehaviorSubject<number>(0);//0 is defined to specify a no selected product
+  productSelectedAction$ = this.productSelectedSubject.asObservable();
+
+  //The 3 steps of reacting to an action
+  //Step 1 : Create an action stream with the Object we want to emit (Product) as private
+  private productInsertedSubject = new Subject<Product>();
+  //Step 2: we expose our action stream as an observable
+  productInsertedAction$ = this.productInsertedSubject.asObservable();
+
+  //Step 3: We use the merge() creation function to merge our data stream and our action stream
+  productsWithAdd$ = merge(
+    this.productsWithCategory$,
+    this.productInsertedAction$
+    ).pipe(                 // The scan() takes the accumulator and the current value.
+      scan((acc, value) =>         //In an arrow function with multiple parameters, we enclose them in parentheses
+        (value instanceof Array) ? //We then define the accumulator function and check the tipe of the emitted value 
+        [...value] : [...acc, value], //If it isn't an array of [...value], it's a new product and we push the new product
+        [] as Product[])              // Lastly we add a seed values specifying an empty Product array 
+    )
+  
+
+  selectedProduct$ = combineLatest([
+    this.productsWithCategory$,
+    this.productSelectedAction$
+  ]).pipe(
+    map(([products, selectedProductId]) => // array destructuring
+    products.find(product => product.id === selectedProductId) // We map the products to find the product with product.id === to selectedProductId
+  ), tap(product => console.log('selectedProduct', product)),
+    shareReplay(1)
+  );
+
+  //Everytime this method is called, the selectedProductId is emitted into the productSelectedAction stream,
+  // combineLatest emits, making the pipeline to be re-executed.
+  selectedProductChanged(selectedProductId: number) : void{
+    //The Subject .next() method is called to emit that ID to the action stream.
+    this.productSelectedSubject.next(selectedProductId)
+  }
+
+  //The newProduct is passed in or use a new fakeProducts
+  addProduct(newProduct?: Product) {
+    newProduct = newProduct || this.fakeProduct();
+    this.productInsertedSubject.next(newProduct);
+  }
+
 
 }

@@ -19,7 +19,7 @@ export class ProductListComponent {
 
   //Now we will combine both arrays, using the productsWithCategory + the categorySelectedAction$
   products$ = combineLatest([
-    this.productService.productsWithCategory$,
+    this.productService.productsWithAdd$, // Step 4: this way we will be shown the previous products plus the new added product (Product Service component)
     this.categorySelectedAction$
     .pipe(
       startWith(0) //This way the filter starts always with all the values.
@@ -47,7 +47,7 @@ export class ProductListComponent {
               private productCategoryService : ProductCategoryService) { }
 
   onAdd(): void {
-    console.log('Not yet implemented');
+    this.productService.addProduct();//We dont pass a new product, the fakeProduct will be added
   }
 
   // This onSelected

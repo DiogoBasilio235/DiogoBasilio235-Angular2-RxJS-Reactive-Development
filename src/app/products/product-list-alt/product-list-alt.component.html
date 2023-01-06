@@ -3,21 +3,24 @@
     {{ pageTitle }}
   </div>
 
+  <!-- In ngClass we access the selectedProduct$ observable.-->
+    <!-- Everytime the Observable emits, we access its ID and set the style class appropriately-->
+    <!-- Be sure to use the ? in (selectedProduct | async)?.id because when the page is first displayed, there is no selected product-->
   <div class="card-body"
        *ngIf="products$ | async as products">
     <div class="list-group">
       <button type="button"
               class="list-group-item"
               *ngFor="let product of products"
-              [ngClass]="{ active: product?.id === selectedProductId }"
+              [ngClass]="{ active: product?.id === (selectedProduct$ | async)?.id }"
               (click)="onSelected(product.id)">
-        {{ product.productName }} ({{ product.categoryId }})
+        {{ product.productName }} ({{ product.category }})
       </button>
     </div>
   </div>
 </div>
 
 <div class="alert alert-danger"
-     *ngIf="errorMessage">
+     *ngIf="errorMessage$ | async as errorMessage">
   {{ errorMessage }}
 </div>
