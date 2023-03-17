@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
-import { throwError, Observable } from 'rxjs';
+import { throwError, Observable, of, map, tap, concatMap, mergeMap, switchMap, shareReplay, catchError } from 'rxjs';
+import { Supplier } from './supplier';
 
 @Injectable({
   providedIn: 'root'
@@ -9,7 +10,41 @@ import { throwError, Observable } from 'rxjs';
 export class SupplierService {
   suppliersUrl = 'api/suppliers';
 
-  constructor(private http: HttpClient) { }
+  suppliers$ = this.http.get<Supplier[]>(this.suppliersUrl)
+  .pipe(
+    tap(data => console.log('suppliers', JSON.stringify(data))),
+    shareReplay(1),
+    catchError(this.handleError)
+  );
+
+  // Waits for each inner observable to complete before processing the next one
+  //suppliersWithConcatMap$ = of(1, 5, 8)
+  //.pipe(
+  //  tap(id => console.log("concatMap source observable", id)),
+  //  concatMap(id => this.http.get<Supplier>(`${this.suppliersUrl}/${id}`))
+  //);
+
+  // Processes inner observables in PARALLEL and merges the result
+  //suppliersWithMergeMap$ = of(1, 5, 8)
+  //.pipe(
+  //  tap(id => console.log('merge Map source observable', id)),
+  //  mergeMap(id => this.http.get<Supplier>(`${this.suppliersUrl}/${id}`))
+  //);
+
+  // Unsubscribes from the prior inner observable and switches to the new one
+  //suppliersWithSwitchMap$ = of(1, 5, 8)
+  //.pipe(
+  //  tap(id => console.log("switch Map source observable", id)),
+  //  switchMap(id => this.http.get<Supplier>(`${this.suppliersUrl}/${id}`))
+  //);
+
+  constructor(private http: HttpClient) {
+    //Higher order observables
+    //this.suppliersWithConcatMap$.subscribe(item => console.log("concat map result", item));
+    //this.suppliersWithMergeMap$.subscribe(item => console.log("merge map result", item));
+    //this.suppliersWithSwitchMap$.subscribe(item => console.log("merge map result", item));
+   
+  }
 
   private handleError(err: HttpErrorResponse): Observable<never> {
     // in a real world app, we may send the server to some remote logging infrastructure

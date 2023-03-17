@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-
-import { BehaviorSubject, catchError, combineLatest, map, merge, Observable, scan, shareReplay, Subject, tap, throwError } from 'rxjs';
+import { SupplierService } from '../suppliers/supplier.service';
+import { BehaviorSubject, catchError, combineLatest, filter, forkJoin, map, merge, Observable, of, scan, shareReplay, Subject, switchMap, tap, throwError } from 'rxjs';
 
 import { Product } from './product';
 import { ProductCategoryService } from '../product-categories/product-category.service';
+import { Supplier } from '../suppliers/supplier';
 
 @Injectable({
   providedIn: 'root'
@@ -34,7 +35,8 @@ export class ProductService {
   );
 
   constructor(private http: HttpClient,
-              private productCategoryService: ProductCategoryService) { }
+              private productCategoryService: ProductCategoryService,
+              private supplierService: SupplierService) { }
 
 
   private fakeProduct(): Product {
@@ -97,6 +99,32 @@ export class ProductService {
     products.find(product => product.id === selectedProductId) // We map the products to find the product with product.id === to selectedProductId
   ), tap(product => console.log('selectedProduct', product)),
     shareReplay(1)
+  );
+
+  // Two different approaches to get the product Suppliers
+  // Retrieves ALL data from a data source and caches it
+  //selectedProductSuppliers$ = combineLatest([
+  //  this.selectedProduct$,
+  //  this.supplierService.suppliers$
+  //]).pipe(
+  //  map(([selectedProduct, suppliers]) =>
+   // suppliers.filter(supplier => selectedProduct?.supplierIds?.includes(supplier.id))
+  //  )
+  //)
+
+  // Retrieves the data from a data source as we need it
+  selectedProductSuppliers$ = this.selectedProduct$
+  .pipe(
+    filter(product => Boolean(product)),
+    switchMap(selectedProduct => {
+      if (selectedProduct?.supplierIds) {
+        return forkJoin(selectedProduct.supplierIds.map(supplierId => 
+          this.http.get<Supplier>(`${this.suppliersUrl}/${supplierId}`)))
+      } else {
+        return of([]);
+      }
+    }), 
+    tap(suppliers => console.log('product suppliers', JSON.stringify(suppliers)))
   );
 
   //Everytime this method is called, the selectedProductId is emitted into the productSelectedAction stream,
